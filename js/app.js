@@ -139,9 +139,22 @@
   const App = {
     add(t) { TOPICS.push(t); },
     topics: TOPICS,
+    /** which part of the course a group belongs to (drives the accent colour) */
+    partOf(g) { const m = /^Part (\w)/.exec(g); return m ? m[1] : (g.startsWith('Start') ? 'S' : 'R'); },
+    confetti(anchor) {
+      const r = anchor.getBoundingClientRect(), cols = ['#2a78d6', '#eb6834', '#1baf7a', '#6250d6', '#eda100', '#e87ba4'];
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('i'); p.className = 'confetti';
+        const a = Math.random() * Math.PI + Math.PI, v = 90 + Math.random() * 200;
+        p.style.cssText = `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;background:${cols[i % cols.length]};--dx:${Math.cos(a) * v}px;--dy:${Math.sin(a) * v + 140}px;--rot:${Math.random() * 720 - 360}deg`;
+        document.body.appendChild(p); setTimeout(() => p.remove(), 1200);
+      }
+    },
     start() {
-      const theme = store.get('theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const theme = store.get('theme', 'dark');
       document.documentElement.dataset.theme = theme;
+      const bar = document.createElement('div'); bar.id = 'scrollbar'; document.body.appendChild(bar);
+      window.addEventListener('scroll', () => { const h = document.documentElement.scrollHeight - innerHeight; bar.style.width = (h > 0 ? scrollY / h * 100 : 0) + '%'; }, { passive: true });
       $('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; store.set('theme', t); App.render(); };
       $('#menuBtn').onclick = () => $('#nav').classList.toggle('open');
       window.addEventListener('hashchange', () => App.render());
@@ -151,13 +164,14 @@
       const done = store.get('done', {});
       let html = '', g = null;
       TOPICS.forEach(t => {
-        if (t.group !== g) { g = t.group; html += `<div class="group">${g}</div>`; }
-        html += `<a href="#${t.id}" data-id="${t.id}"><span class="ic">${t.icon || '•'}</span><span>${t.title}</span>${done[t.id] ? '<span class="done" title="Marked as understood">✓</span>' : ''}${t.week ? `<span class="wk">${t.week}</span>` : ''}</a>`;
+        if (t.group !== g) { g = t.group; html += `<div class="group" data-part="${App.partOf(g)}">${g}</div>`; }
+        html += `<a href="#${t.id}" data-id="${t.id}" data-part="${App.partOf(t.group)}"><span class="ic">${t.icon || '•'}</span><span>${t.title}</span>${done[t.id] ? '<span class="done" title="Marked as understood">✓</span>' : ''}${t.week ? `<span class="wk">${t.week}</span>` : ''}</a>`;
       });
       $('#nav').innerHTML = html;
       const learnable = TOPICS.filter(t => !t.noProgress);
       const n = learnable.filter(t => done[t.id]).length;
       $('#progressPill').textContent = `✓ ${n} / ${learnable.length} understood`;
+      $('#progressPill').style.setProperty('--pct', Math.round(n / learnable.length * 100) + '%');
     },
     render() {
       const id = location.hash.slice(1) || TOPICS[0].id;
@@ -170,14 +184,15 @@
       const main = $('#main');
       Plot.hideTip();
       try {
-      main.innerHTML =`<div class="crumb">${t.group}${t.week ? ' · ' + t.week : ''}</div><h1>${t.icon || ''} ${t.title}</h1>` + t.html() +
+      document.body.dataset.part = App.partOf(t.group);
+      main.innerHTML = `<div class="pagehead"><span class="h1ic">${t.icon || '•'}</span><div><div class="crumb">${t.group}${t.week ? ' · ' + t.week : ''}</div><h1>${t.title}</h1></div></div>` + t.html() +
         `<div class="footer-nav">
           ${prev ? `<a class="btn" href="#${prev.id}">◂ ${prev.title}</a>` : '<span></span>'}
           ${t.noProgress ? '' : `<label class="understood"><input type="checkbox" id="doneChk" ${done[t.id] ? 'checked' : ''}> I understand this topic</label>`}
           ${next ? `<a class="btn primary" href="#${next.id}">${next.title} ▸</a>` : '<span></span>'}
         </div>`;
       const chk = $('#doneChk');
-      if (chk) chk.onchange = () => { const d = store.get('done', {}); d[t.id] = chk.checked; store.set('done', d); App.buildNav(); $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.id === t.id)); };
+      if (chk) chk.onchange = () => { const d = store.get('done', {}); d[t.id] = chk.checked; store.set('done', d); if (chk.checked) App.confetti(chk); App.buildNav(); $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.id === t.id)); };
       UI.initCommon(main);
       t.init && t.init(main);
       } catch (e) {

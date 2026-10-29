@@ -22,9 +22,31 @@
     ['Mean vs median efficiency', 'median', [0, 0, 0, [5, 'Q3a'], 0]],
   ];
 
+  /** decorative animated hero graphic: a histogram settling into bell curves */
+  function heroArt() {
+    const W = 380, H = 230, sx = x => 20 + (x + 4) / 8 * (W - 40), sy = y => H - 24 - y * (H - 60) / 0.8;
+    const curve = (sd, op, delay) => {
+      let d = ''; for (let i = 0; i <= 120; i++) { const x = -4 + 8 * i / 120; d += (i ? 'L' : 'M') + sx(x).toFixed(1) + ',' + sy(S.normPdf(x, 0, sd)).toFixed(1); }
+      return `<path class="c" d="${d}" stroke="rgba(255,255,255,${op})" stroke-width="${sd === 1 ? 3.5 : 2}" style="animation-delay:${delay}s"/>`;
+    };
+    let bars = ''; for (let k = 0; k < 16; k++) { const x = -4 + k * 0.5, h = sy(S.normPdf(x + 0.25, 0, 1)); bars += `<rect class="b" x="${sx(x) + 1}" y="${h}" width="${sx(x + 0.5) - sx(x) - 2}" height="${H - 24 - h}" rx="3" style="animation-delay:${0.3 + k * 0.05}s"/>`; }
+    const dots = [[-2.4, 0.32], [1.1, 0.62], [2.6, 0.28], [-0.5, 0.74], [0.3, 0.5]].map(([x, y], i) => `<circle class="dot" cx="${sx(x)}" cy="${sy(y)}" r="${4 + i % 2}" style="animation-delay:${i * 0.5}s"/>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><line x1="14" x2="${W - 14}" y1="${H - 24}" y2="${H - 24}" stroke="rgba(255,255,255,.45)" stroke-width="2"/>${bars}${curve(1.6, 0.4, 0.2)}${curve(0.5, 0.55, 0.5)}${curve(1, 1, 0)}${dots}</svg>`;
+  }
+
   App.add({
     id: 'start', group: 'Start here', icon: '🧭', title: 'Big picture & exam map', noProgress: true,
     html: () => `
+      <div class="hero">
+        <div>
+          <span class="hero-badge">MA3014 · Semester 3 · University of Moratuwa</span>
+          <h2>See the statistics.<br><span>Don't just memorise it.</span></h2>
+          <p>Drag sliders, run simulations and watch every formula come alive. All five past papers are solved one step at a time.</p>
+          <div class="hero-stats"><div><b>${App.topics.length}</b>interactive pages</div><div><b>5</b>past papers solved</div><div><b>32</b>quiz questions</div></div>
+          <div class="btnrow"><a class="btn primary" href="#discrete">Start with Week 1 ▸</a><a class="btn" href="#regression">Jump to regression</a><a class="btn" href="#quiz">Try the quiz</a></div>
+        </div>
+        <div class="hero-art">${heroArt()}</div>
+      </div>
       <p class="lead">This guide turns every theory point from your 8 weekly tutes into pictures you can play with, and it walks through <b>every question from the 5 past papers</b> (2022 to 2025) step by step. Move the sliders, watch the shapes change, then reveal the worked answer one step at a time.</p>
 
       <div class="card">
@@ -37,7 +59,7 @@
 
       <div class="card">
         <h3>Exam heat map: where the marks come from</h3>
-        <p>Each cell shows the marks a topic earned in that paper. Darker means more marks. <b>Hover</b> to see the question number, <b>click</b> to open the topic.</p>
+        <p>Each cell shows the marks a topic earned in that paper. The stronger the colour, the more marks. <b>Hover</b> to see the question number, <b>click</b> to open the topic.</p>
         <div id="heat" class="tablewrap"></div>
         <p class="muted">Regression appears in <b>every</b> paper (about 25 marks). χ² tests, CIs and hypothesis tests come next. Learn those first.</p>
       </div>
@@ -76,11 +98,12 @@
       rungs.forEach((r, i) => {
         const y = H - 52 * (i + 1), x = 20 + i * 28;
         const g = Plot.el('g', {}, { cursor: 'pointer' });
-        const shade = ['--seq-2', '--seq-3', '--seq-4', '--seq-5', '--seq-5', '--seq-6', '--seq-6'][i];
-        g.append(Plot.el('rect', { x, y, width: W - 40 - i * 28 * 1.2, height: 44, rx: 10 }, { fill: `var(${shade})` }));
-        const t1 = Plot.el('text', { x: x + 14, y: y + 19 }, { fill: i < 2 ? 'var(--text-primary)' : '#fff', fontWeight: 700, fontSize: '14px' }); t1.textContent = r[0];
-        const t2 = Plot.el('text', { x: x + 14, y: y + 36 }, { fill: i < 2 ? 'var(--text-secondary)' : '#e8f0fb', fontSize: '12px' }); t2.textContent = r[1];
-        const t3 = Plot.el('text', { x: W - 30 - i * 28 * 0.2, y: y + 27, 'text-anchor': 'end' }, { fill: i < 2 ? 'var(--text-secondary)' : '#e8f0fb', fontSize: '12px', fontWeight: 600 }); t3.textContent = r[3] + ' ›';
+        // fixed blues (light to dark going up the ladder), all dark enough for white text in either theme
+        const shade = ['#2f74c9', '#2a6bbd', '#2561ad', '#1f589c', '#1a4e8c', '#15447b', '#103a6b'][i];
+        g.append(Plot.el('rect', { x, y, width: W - 40 - i * 28 * 1.2, height: 44, rx: 10 }, { fill: shade }));
+        const t1 = Plot.el('text', { x: x + 14, y: y + 19 }, { fill: '#fff', fontWeight: 700, fontSize: '14px' }); t1.textContent = r[0];
+        const t2 = Plot.el('text', { x: x + 14, y: y + 36 }, { fill: '#dbe8fa', fontSize: '12px' }); t2.textContent = r[1];
+        const t3 = Plot.el('text', { x: W - 30 - i * 28 * 0.2, y: y + 27, 'text-anchor': 'end' }, { fill: '#dbe8fa', fontSize: '12px', fontWeight: 600 }); t3.textContent = r[3] + ' ›';
         g.append(t1, t2, t3);
         g.addEventListener('click', () => location.hash = r[2]);
         svg.append(g);
@@ -92,7 +115,9 @@
         if (!v) return ['transparent', 'var(--text-muted)'];
         const steps = ['--seq-1', '--seq-2', '--seq-3', '--seq-4', '--seq-5', '--seq-6'];
         const i = Math.min(5, Math.floor(v / max * 5.99));
-        return [`var(${steps[i]})`, i >= 3 ? '#fff' : 'var(--text-primary)'];
+        // the ramp is reversed in dark mode (bigger = brighter), so the text colour has to flip too
+        const dark = document.documentElement.dataset.theme === 'dark';
+        return [`var(${steps[i]})`, dark ? (i >= 3 ? '#0b0b0b' : '#fff') : (i >= 3 ? '#fff' : 'var(--text-primary)')];
       };
       const totals = MAP.map(r => r[2].reduce((s, c) => s + (c ? c[0] : 0), 0));
       let h = `<table class="t heat"><tr><th class="l">Topic</th>${P.map(p => `<th>${p}</th>`).join('')}<th>Total</th></tr>`;
